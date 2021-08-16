@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 ENCRYPTED_SCHOLAR_CSV = 'scholar_store_encrypted.csv'
 
 LUNACIAROVER_ENDPOINT = 'https://api.lunaciarover.com/stats/{}'
