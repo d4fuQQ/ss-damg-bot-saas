@@ -59,25 +59,6 @@ def convert_number_to_ordinal(num):
 def get_individual_rank_msg(ronin_address):
     df = retrieve_info()
 
-    excluded_addresses = ['0x0dd5c01375fd23c0dabd90ac020de87517235e19',
-                          '0x1bcdcb1912004cf8dce9e7e53884059d2fdf35ec',
-                          '0x9a6d68b161d547924bd65691302f92ad2b463d8d']
-
-    # remove Bey, Dyey - I should probably still let them see stats tbf
-    if ronin_address in excluded_addresses:
-        row = df.loc[df['address'].str.match(ronin_address)]
-        name = row['name'].iloc[0]
-        avg_slp = row['average_slp'].iloc[0]
-
-        msg = 'Hi, {}!\n'.format(name)
-        msg += 'Your average SLP per day is {:.1f}\n'.format(avg_slp)
-
-        return msg
-
-    else:
-        for addr in excluded_addresses:
-            df = df.loc[df['address'] != addr]
-
     # This is the wrong way to do this, I should find their row by address and then find index
     rank = 1
     avg_slp = -1
@@ -116,13 +97,6 @@ def get_top_rank_msg():
     players_to_include = 10
 
     df = retrieve_info()
-
-    excluded_addresses = ['0x0dd5c01375fd23c0dabd90ac020de87517235e19',
-                          '0x1bcdcb1912004cf8dce9e7e53884059d2fdf35ec',
-                          '0x9a6d68b161d547924bd65691302f92ad2b463d8d']
-
-    for addr in excluded_addresses:
-        df = df.loc[df['address'] != addr]
 
     if len(df.index) < players_to_include:
         return False
