@@ -140,6 +140,10 @@ def get_all_rank_msg():
     address_to_discord_id = get_address_to_discord_id_dict()
 
     for key, row in df.iterrows():
+        days_since_claimed = get_days_since_claimed(row['last_updated'], row['last_claimed'])
+        if days_since_claimed < 1:
+            continue
+            
         if row['address'] not in address_to_discord_id:
             continue
 
