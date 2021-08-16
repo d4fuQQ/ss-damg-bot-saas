@@ -135,11 +135,6 @@ def get_top_rank_msg():
 def get_all_rank_msg():
     df = retrieve_info()
 
-    excluded_addresses = ['0x9a6d68b161d547924bd65691302f92ad2b463d8d']
-
-    for addr in excluded_addresses:
-        df = df.loc[df['address'] != addr]
-
     msg = 'All SLP Earners as of {}:\n\n'.format(datetime.datetime.today().strftime('%Y-%m-%d'))
 
     address_to_discord_id = get_address_to_discord_id_dict()
