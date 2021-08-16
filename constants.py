@@ -11,7 +11,7 @@ CRYPTO_API_ENDPOINT = 'https://min-api.cryptocompare.com/data/price?fsym='
 
 WEB3_FREE_GAS_RPC = 'https://proxy.roninchain.com/free-gas-rpc'
 WEB3_RONIN_RPC = 'https://api.roninchain.com/rpc'
-SLP_CONTRACT_ADDR = "0x364cbb653ca0eba8fe2bf0a505529627802c31a5"
+SLP_CONTRACT_ADDR = "0xa8754b9fa15fc18bb59458815510e40a12cd2014"
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36'}
 MAX_RETRIES = 3
