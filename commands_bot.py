@@ -81,14 +81,13 @@ def user_has_permission(user, command):
     if user is None:
         return False
 
-    current_permissions = get_command_permissions(command)
+    #current_permissions = get_command_permissions(command)
 
     user_roles = [str(role.id) for role in user.roles]
 
-    for user_role in user_roles:
-        arr = ['490989299911884800', '574690954380836874']
-        if user_role in arr:
-            return True
+    arr = ['490989299911884800', '574690954380836874']
+    if user.id in arr:
+        return True
 
     print('User {} does not have permission for command {}'.format(user.name, command))
 
