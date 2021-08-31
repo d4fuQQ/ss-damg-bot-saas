@@ -85,8 +85,7 @@ def user_has_permission(user, command):
 
     #user_roles = [str(role.id) for role in user.roles]
 
-    arr = [490989299911884800, 574690954380836874]
-    if user.id in arr:
+    if user.id == 490989299911884800:
         return True
 
     print('User {} does not have permission for command {}'.format(user.name, command))
