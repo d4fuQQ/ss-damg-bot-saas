@@ -83,9 +83,9 @@ def user_has_permission(user, command):
 
     #current_permissions = get_command_permissions(command)
 
-    user_roles = [str(role.id) for role in user.roles]
+    #user_roles = [str(role.id) for role in user.roles]
 
-    arr = ['490989299911884800', '574690954380836874']
+    arr = [490989299911884800, 574690954380836874]
     if user.id in arr:
         return True
 
