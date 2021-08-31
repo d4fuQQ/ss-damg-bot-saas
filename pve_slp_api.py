@@ -1,3 +1,4 @@
+from commands_bot import user_has_permission
 from constants import HEADERS, MAX_RETRIES, PVE_SLP_ENDPOINT, DEV_IDS
 
 import json
@@ -5,6 +6,7 @@ import requests
 import bs4
 import time
 
+from discord_helpers import send_message
 from encryption import return_scholar_dict
 
 
@@ -29,7 +31,12 @@ def get_slp_stats(ronin_address):
     return info
 
 
-def get_daily_pve_summary():
+async def get_daily_pve_summary(user, channel, override=False):
+    if not user_has_permission(user, "!pve") and not override:
+        return
+
+    await send_message('Fetching PVE stats, may take some time....', channel)
+
     msg = ''
 
     players_to_finish = 0
@@ -45,7 +52,7 @@ def get_daily_pve_summary():
                 players_to_finish += 1
                 msg += '<@{}>: {} SLP\n'.format(discord_id, gained_pve_slp)
 
-    msg = 'Daily PVE RSS Summary: ({} out of {} players still to finish)\n'.format(players_to_finish, total_players) \
+    msg = 'Daily PVE SS-DAMG Summary: ({} out of {} players still to finish)\n'.format(players_to_finish, total_players) \
           + msg
 
-    return msg
+    await send_message(msg, channel)

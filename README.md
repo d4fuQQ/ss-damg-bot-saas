@@ -37,16 +37,17 @@ The general commands are as follows:
 
 Encrypt:
 ```
-python main.py -m encrypt -i <path_to_decrypted_file> -o <path_where_encrypted_file_should_be_created> -k <encryption_key>
+python encryption.py -m encrypt -i <path_to_decrypted_file> -o <path_where_encrypted_file_should_be_created> -k <encryption_key>
 ```
 Decrypt:
 ```
-python main.py -m decrypt -i <path_to_encrypted_file> -o <path_where_decrypted_file_should_be_created> -k <encryption_key>
+python encryption.py -m decrypt -i <path_to_encrypted_file> -o <path_where_decrypted_file_should_be_created> -k <encryption_key>
 ```
 Generate new key:
 ```
- python main.py -m genkey
+ python encryption.py -m genkey
 ```
+Your key is everything inside the single quotes (not the b or the either of the 's)
 
 ## Payout:
 The payout bot will claim SLP in the addresses within your encrypted scholar store, and then pay out the earnings to both

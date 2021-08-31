@@ -1,9 +1,17 @@
+import os
+import uuid
+
+import discord
+import qrcode
 import requests
 import json
 from web3.auto import w3
 from eth_account.messages import encode_defunct
 
+from commands_bot import user_has_permission
 from constants import MAX_RETRIES, GRAPHQL_ENDPOINT
+from discord_helpers import send_message
+from encryption import return_scholar_dict
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36',}
 
@@ -48,3 +56,36 @@ def submit_signature(signed_message, message, ronin_address):
         return False
 
     return json_data['data']['createAccessTokenWithSignature']['accessToken']
+
+
+async def qr_bot(message, msg_pieces):
+    scholar_dict = return_scholar_dict()
+    if str(message.author.id) in scholar_dict:
+        scholar_info = scholar_dict[str(message.author.id)]
+        account_private_key = scholar_info[2]
+        account_address = scholar_info[1]
+
+        raw_message = get_raw_message()
+        signed_message = get_sign_message(raw_message, account_private_key)
+        access_token = submit_signature(signed_message, raw_message, account_address)
+
+        if not access_token:
+            msg = "Hi <@{}>, The QR bot is having trouble right now. Feel free to try again in a few" \
+                  " seconds. If that doesn't work, we suggest logging in with your username and " \
+                  "password.".format(message.author.id)
+            await send_message(msg, message.author)
+            return
+
+        qr_code_path = f"QRCode_{message.author.id}_{str(uuid.uuid4())[0:8]}.png"
+        qrcode.make(access_token).save(qr_code_path)
+
+        await send_message("Hi <@{}>, here is your new QR Code to login".format(message.author.id), message.author)
+        await message.author.send(file=discord.File(qr_code_path))
+
+        os.remove(qr_code_path)
+        return
+    else:
+        await send_message("Hi <@{}>, your account isn't yet set up to work with the QR code, but you can "
+                           "still login in with username and password right now."
+                           .format(message.author.id), message.author)
+        return

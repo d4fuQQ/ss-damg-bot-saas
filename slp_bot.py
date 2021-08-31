@@ -1,7 +1,10 @@
 import datetime
 import time
 
-from constants import TIMESTAMP_FORMAT, MIN_DAYS_FOR_INCLUSION
+from commands_bot import user_has_permission
+from constants import TIMESTAMP_FORMAT, MIN_DAYS_FOR_INCLUSION, PLAYERS_IN_TOP_RANK_COMMAND, \
+    SCHOLARS_TO_EXCLUDE_FROM_TOP_RANK, DEV_RONIN_ADDRESSES
+from discord_helpers import send_message
 from encryption import return_scholar_dict, get_address_to_discord_id_dict
 from slp_api import get_slp_stats
 from slp_db import update_db, get_entire_db
@@ -56,34 +59,59 @@ def convert_number_to_ordinal(num):
         return str(num) + 'th'
 
 
-def get_individual_rank_msg(ronin_address):
+async def get_individual_rank_msg(user, channel):
+    scholar_dict = return_scholar_dict()
+
+    if str(user.id) not in scholar_dict:
+        await send_message("Hi <@{}>, your info has not yet been added to the bot by your manager.", user.id, user)
+        return
+
+    scholar_info = scholar_dict[str(user.id)]
+    discord_name = scholar_info[0]
+    ronin_address = scholar_info[1]
+
     df = retrieve_info()
+
+    excluded_addresses = SCHOLARS_TO_EXCLUDE_FROM_TOP_RANK
+
+    if ronin_address in excluded_addresses:
+        row = df.loc[df['address'].str.match(ronin_address)]
+        name = row['name'].iloc[0]
+        avg_slp = row['average_slp'].iloc[0]
+
+        msg = 'Hi, {}!\n'.format(name)
+        msg += 'Your average SLP per day is {:.1f}\n'.format(avg_slp)
+
+        await send_message(msg, user)
+        return
+
+    else:
+        for addr in excluded_addresses:
+            df = df.loc[df['address'] != addr]
 
     # This is the wrong way to do this, I should find their row by address and then find index
     rank = 1
     avg_slp = -1
-    name = ''
     days_since_claimed = -1
     for row_id, row in df.iterrows():
         days_since_claimed = get_days_since_claimed(row['last_updated'], row['last_claimed'])
         if row['address'] == ronin_address:
             avg_slp = row['average_slp']
-            name = row['name']
             break
         if days_since_claimed >= MIN_DAYS_FOR_INCLUSION:
             rank += 1
 
     if avg_slp == -1:
-        return False
+        raise Exception("Failed to retrieve info for {} at address {}".format(discord_name, ronin_address))
 
-    msg = 'Hi, {}!\n'.format(name)
+    msg = 'Hi, {}!\n'.format(discord_name)
     msg += 'Your average SLP per day is {:.1f}\n'.format(avg_slp)
     msg += 'You are currently in {} place!'.format(convert_number_to_ordinal(rank))
 
     if days_since_claimed < MIN_DAYS_FOR_INCLUSION:
         msg += '\nOnce your current cycle exceeds 5 days you\'ll be eligible for the leaderboard.'
 
-    return msg
+    await send_message(msg, user)
 
 
 def get_days_since_claimed(last_updated, last_claimed):
@@ -93,13 +121,19 @@ def get_days_since_claimed(last_updated, last_claimed):
     return (last_updated - last_claimed) / 86400
 
 
-def get_top_rank_msg():
-    players_to_include = 10
+async def get_top_rank_msg(user, channel, players_to_include=PLAYERS_IN_TOP_RANK_COMMAND, override=False):
+    if not user_has_permission(user, "!rank top") and not override:
+        return
 
     df = retrieve_info()
 
+    excluded_addresses = SCHOLARS_TO_EXCLUDE_FROM_TOP_RANK
+
+    for addr in excluded_addresses:
+        df = df.loc[df['address'] != addr]
+
     if len(df.index) < players_to_include:
-        return False
+        return
 
     emoji_list = [':first_place:', ':second_place:', ':third_place:', ':moneybag:', ':crossed_swords:', ':rocket:',
                   ':money_with_wings:', ':gem:', ':pick:', ':eyes:']
@@ -127,13 +161,21 @@ def get_top_rank_msg():
             break
 
     if count < players_to_include:
-        return False
+        return
 
-    return msg
+    await send_message(msg, channel)
 
 
-def get_all_rank_msg():
+async def get_all_rank_msg(user, channel):
+    if not user_has_permission(user, "!rank all"):
+        return
+
     df = retrieve_info()
+
+    excluded_addresses = DEV_RONIN_ADDRESSES
+
+    for addr in excluded_addresses:
+        df = df.loc[df['address'] != addr]
 
     msg = 'All SLP Earners as of {}:\n\n'.format(datetime.datetime.today().strftime('%Y-%m-%d'))
 
@@ -143,13 +185,13 @@ def get_all_rank_msg():
         days_since_claimed = get_days_since_claimed(row['last_updated'], row['last_claimed'])
         if days_since_claimed < 1:
             continue
-            
+
         if row['address'] not in address_to_discord_id:
             continue
 
         msg += '<@{}> : {:.1f} SLP AVG\n'.format(address_to_discord_id[row['address']], row['average_slp'])
 
-    return msg
+    await send_message(msg, channel)
 
 
 if __name__ == "__main__":
