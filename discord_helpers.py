@@ -19,7 +19,13 @@ def get_messages_under_max_size(message):
 
     lines = message.split('\n')
 
-    return ['\n'.join(lines[:middle_newline]), '\n'.join(lines[middle_newline:])]
+    first_half = '\n'.join(lines[:middle_newline])
+    second_half = '\n'.join(lines[middle_newline:])
+
+    first_half_pieces = get_messages_under_max_size(first_half)
+    second_half_pieces = get_messages_under_max_size(second_half)
+
+    return first_half_pieces + second_half_pieces
 
 
 async def send_message(message_to_send: str, to, received_message=None, title=None):
