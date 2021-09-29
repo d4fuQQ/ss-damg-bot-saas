@@ -2,7 +2,7 @@ import os
 
 ENCRYPTED_SCHOLAR_CSV = 'scholar_store_encrypted.csv'
 
-LUNACIAROVER_ENDPOINT = 'https://api.lunaciarover.com/stats/{}'
+LUNACIAROVER_ENDPOINT = 'https://game-api.axie.technology/api/v1/{}'
 PVE_SLP_ENDPOINT = 'https://axieboard.vercel.app/api/game/pve?address={}'
 GRAPHQL_ENDPOINT = 'https://axieinfinity.com/graphql-server-v2/graphql'
 AXIE_ENDPOINT = 'https://axie-proxy.secret-shop.buzz/_axiesPlease/{}'

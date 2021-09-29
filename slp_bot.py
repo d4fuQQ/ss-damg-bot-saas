@@ -20,6 +20,7 @@ def run_update():
 
         slp_stats = get_slp_stats(ronin_address)
         slp_stats['name'] = name
+        slp_stats['ronin_address'] = ronin_address
 
         update_db(slp_stats)
 

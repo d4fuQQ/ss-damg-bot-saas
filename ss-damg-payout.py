@@ -142,13 +142,17 @@ if new_line_needed:
 if len(slp_claims) > 0:
     log("Would you like to claim SLP?", end=" ")
 
-while len(slp_claims) > 0:
-    try:
-        if input() == "y":
+if input() == "y":
+    while len(slp_claims) > 0:
+        try:
             for slp_claim in slp_claims:
                 log(f"   Claiming {slp_claim.slp_unclaimed_balance} SLP for '{slp_claim.name}'...", end="")
-                slp_utils.execute_slp_claim(slp_claim, nonces)
-                time.sleep(0.250)
+                try:
+                    slp_utils.execute_slp_claim(slp_claim, nonces)
+                except Exception as e:
+                    time.sleep(0.250)
+                    log("FAILED to claim for {}", slp_claim.name)
+                    continue
                 log("DONE")
             log("Waiting 30 seconds", end="")
             wait(30)
@@ -170,14 +174,12 @@ while len(slp_claims) > 0:
                 log("The following claims didn't complete successfully:")
                 for slp_claim in slp_claims:
                     log(f"  - Account '{slp_claim.name}' has {slp_claim.slp_unclaimed_balance} unclaimed SLP.")
-                log("Would you like to retry claim process? ", end="")
+                #log("Would you like to retry claim process? ", end="")
             else:
                 log("All claims completed successfully!")
-        else:
-            break
-    except Exception as e:
-        log('(Scholar: ' + slp_claim.name + '): ' + str(e), error=True)
-        continue
+        except Exception as e:
+            log('(Scholar: ' + slp_claim.name + '): ' + str(e), error=True)
+            continue
 
 log()
 log("Please review the payouts for each scholar:")

@@ -66,8 +66,8 @@ def insert_row(row):
     name = row['name']
     unclaimed_slp = row['in_game_slp']
     claimed_slp = row['ronin_slp']
-    last_claimed = datetime.datetime.fromtimestamp(row['last_claim_timestamp']).strftime(TIMESTAMP_FORMAT)
-    last_updated = datetime.datetime.fromtimestamp(row['updated_on']).strftime(TIMESTAMP_FORMAT)
+    last_claimed = datetime.datetime.fromtimestamp(row['last_claim']).strftime(TIMESTAMP_FORMAT)
+    last_updated = datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
     mmr = row['mmr']
     total_matches = row['total_matches']
     win_percent = row['win_rate']
@@ -97,8 +97,8 @@ def update_row(row):
     name = row['name']
     unclaimed_slp = row['in_game_slp']
     claimed_slp = row['ronin_slp']
-    last_claimed = datetime.datetime.fromtimestamp(row['last_claim_timestamp']).strftime(TIMESTAMP_FORMAT)
-    last_updated = datetime.datetime.fromtimestamp(row['updated_on']).strftime(TIMESTAMP_FORMAT)
+    last_claimed = datetime.datetime.fromtimestamp(row['last_claim']).strftime(TIMESTAMP_FORMAT)
+    last_updated = datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
     mmr = row['mmr']
     total_matches = row['total_matches']
     win_percent = row['win_rate']
