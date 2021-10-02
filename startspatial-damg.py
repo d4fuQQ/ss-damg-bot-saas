@@ -9,7 +9,6 @@ from pve_slp_api import get_daily_pve_summary
 from slp_bot import get_individual_rank_msg, get_top_rank_msg, get_all_rank_msg
 from earnings_bot import get_product_earnings_msg
 from payout_bot import run_update_payout, payout_pull, payout_request_scholars
-from axie_bot import get_axie_info
 
 now = datetime.now()
 client = discord.Client()

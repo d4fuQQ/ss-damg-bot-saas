@@ -7,10 +7,10 @@ from constants import TIMESTAMP_FORMAT, MIN_DAYS_FOR_INCLUSION, PLAYERS_IN_TOP_R
 from discord_helpers import send_message
 from encryption import return_scholar_dict, get_address_to_discord_id_dict
 from slp_api import get_slp_stats
-from slp_db import update_db, get_entire_db
+from slp_db import update_db, get_entire_db, update_daily_slp
 
 
-def run_update():
+def run_update(daily_update=False):
     scholar_data = return_scholar_dict()
 
     print('Updating DB....')
@@ -23,10 +23,12 @@ def run_update():
         slp_stats['ronin_address'] = ronin_address
 
         update_db(slp_stats)
-
         print('User {} updated with address {}'.format(name, ronin_address))
 
-        # Sleep to not annoy the API
+        if daily_update:
+            update_daily_slp(ronin_address)
+            print('Updated daily SLP totals for user {} with address {}'.format(name, ronin_address))
+
         time.sleep(.5)
 
 
@@ -64,7 +66,7 @@ async def get_individual_rank_msg(user, channel):
     scholar_dict = return_scholar_dict()
 
     if str(user.id) not in scholar_dict:
-        await send_message("Hi <@{}>, your info has not yet been added to the bot by your manager.", user.id, user)
+        await send_message("Hi <@{}>, your info has not yet been added to the bot by your manager.".format(user.id), user)
         return
 
     scholar_info = scholar_dict[str(user.id)]
@@ -193,7 +195,3 @@ async def get_all_rank_msg(user, channel):
         msg += '<@{}> : {:.1f} SLP AVG\n'.format(address_to_discord_id[row['address']], row['average_slp'])
 
     await send_message(msg, channel)
-
-
-if __name__ == "__main__":
-    run_update()
