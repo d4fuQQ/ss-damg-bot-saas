@@ -8,8 +8,9 @@ from datetime import datetime
 from web3 import Web3
 
 import slp_utils
-from constants import ACADEMY_PAYOUT_ADDRESS, WEB3_FREE_GAS_RPC, SCHOLARSHIP_SHARE
+from constants import ACADEMY_PAYOUT_ADDRESS, WEB3_FREE_GAS_RPC
 from encryption import return_scholar_dict
+from helpers import is_valid_ronin_address
 from payout_db import get_scholar_payout_address
 
 RONIN_ADDRESS_PREFIX = "ronin:"
@@ -40,6 +41,27 @@ def format_ronin_address(address):
     return address.replace("0x", RONIN_ADDRESS_PREFIX)
 
 
+def check_all_valid_and_no_duplicates():
+    scholar_dict = return_scholar_dict()
+
+    existing_addresses = set()
+    errored = False
+
+    for discord_id, info in scholar_dict.items():
+        name = info[0]
+        address = info[1]
+        if not (is_valid_ronin_address(address) or address.startswith('0x')):
+            log('Found invalid address for user {}: {}'.format(name, address), error=True)
+            errored = True
+        if address in existing_addresses:
+            log('Address {} for user {} is already assigned to someone else.'.format(address, name), error=True)
+            errored = True
+        else:
+            existing_addresses.add(address)
+
+    return not errored
+
+
 def log(message="", end="\n", error=False):
     print(message, end=end, flush=True)
     sys.stdout = log_file
@@ -50,6 +72,7 @@ def log(message="", end="\n", error=False):
     sys.stdout = original_stdout  # reset to original stdout
     log_file.flush()
 
+
 def wait(seconds):
     for i in range(0, seconds):
         time.sleep(1)
@@ -57,11 +80,14 @@ def wait(seconds):
     log()
 
 
+if not check_all_valid_and_no_duplicates():
+    raise Exception('Issues were found in your scholar store. Please address them before trying again.')
+
 web3 = Web3(Web3.HTTPProvider(WEB3_FREE_GAS_RPC))
 
 now_dt = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-log_path = f"logs/logs-{now_dt}.txt"
-error_path = f"logs/logs-{now_dt}_error.txt"
+log_path = f"logs/logs-{now_dt}.txt".replace(':', "_")
+error_path = f"logs/logs-{now_dt}_error.txt".replace(':', "_")
 
 if not os.path.exists(os.path.dirname(log_path)):
     os.makedirs(os.path.dirname(log_path))
@@ -87,47 +113,44 @@ academy_payout_address = parse_ronin_address(ACADEMY_PAYOUT_ADDRESS)
 log("Checking for unclaimed SLP")
 slp_claims = []
 product_totals = {}
-new_line_needed = False
+num_accounts = len(accounts)
+index = 0
+
 for _, scholar_info in accounts.items():
-    try:
-        scholarName = scholar_info[0]
-        account_address = parse_ronin_address(scholar_info[1])
-        product = scholar_info[3]
+    index += 1
 
-        scholar_payout_address = get_scholar_payout_address(account_address)
+    scholar_name = scholar_info[0]
+    account_address = parse_ronin_address(scholar_info[1])
+    product = scholar_info[3]
+    scholar_payout_address = get_scholar_payout_address(account_address)
 
-        if scholar_payout_address is None:
-            log('Scholar {} with address {} has no payout address entered, skipping...'
-                .format(scholarName, account_address))
-            continue
-
-        slp_unclaimed_balance = slp_utils.get_unclaimed_slp(account_address)
-
-        nonce = nonces[account_address] = web3.eth.get_transaction_count(account_address)
-
-        if slp_unclaimed_balance > 0:
-            if new_line_needed:
-                new_line_needed = False
-                log()
-            log(f"Account '{scholarName}' (nonce: {nonce}) has {slp_unclaimed_balance} unclaimed SLP.")
-
-            slp_claims.append(SlpClaim(
-                name=scholarName,
-                address=account_address,
-                private_key=get_private_key(scholar_info[2]),
-                slp_claimed_balance=slp_utils.get_claimed_slp(account_address),
-                slp_unclaimed_balance=slp_unclaimed_balance,
-                state={"signature": None}))
-
-            if product not in product_totals:
-                product_totals[product] = 0
-            product_totals[product] += slp_unclaimed_balance
-        else:
-            log(f".", end="")
-            new_line_needed = True
-    except Exception as e:
-        log('(Scholar: ' + scholarName + '): ' + str(e), error=True)
+    if scholar_payout_address is None:
+        log('Scholar {} with address {} has no payout address entered, skipping...'
+            .format(scholar_name, account_address))
         continue
+
+    try:
+        slp_unclaimed_balance = slp_utils.get_unclaimed_slp(account_address)
+        nonce = nonces[account_address] = web3.eth.get_transaction_count(account_address)
+    except Exception as e:
+        log('(Failed to get unclaimed slp for {}, skipping. Exception: {}'.format(scholar_name, e), error=True)
+        continue
+
+    log("({}/{}) Account {} (nonce: {}) has {} unclaimed SLP.".format(index, num_accounts, scholar_name,
+                                                                      nonce, slp_unclaimed_balance))
+
+    if slp_unclaimed_balance > 0:
+        slp_claims.append(SlpClaim(
+            name=scholar_name,
+            address=account_address,
+            private_key=get_private_key(scholar_info[2]),
+            slp_claimed_balance=slp_utils.get_claimed_slp(account_address),
+            slp_unclaimed_balance=slp_unclaimed_balance,
+            state={"signature": None}))
+
+        if product not in product_totals:
+            product_totals[product] = 0
+        product_totals[product] += slp_unclaimed_balance
 
 log()
 log()
@@ -135,51 +158,45 @@ log()
 for product, total in product_totals.items():
     log('{} SLP available to claim for product {}'.format(total, product))
 
-if new_line_needed:
-    new_line_needed = False
-    log()
-
-if len(slp_claims) > 0:
-    log("Would you like to claim SLP?", end=" ")
+log("Would you like to claim SLP? [y]/N", end=" ")
 
 if input() == "y":
-    while len(slp_claims) > 0:
-        try:
+    try:
+        for slp_claim in slp_claims:
+            log(f"   Claiming {slp_claim.slp_unclaimed_balance} SLP for '{slp_claim.name}'...")
+            try:
+                slp_utils.execute_slp_claim(slp_claim, nonces)
+            except Exception as e:
+                time.sleep(0.250)
+                log("FAILED to claim for {}. Exception: {}".format(slp_claim.name, e))
+                continue
+            log("DONE")
+        log("Waiting 30 seconds", end="")
+        wait(30)
+
+        completed_claims = []
+        for slp_claim in slp_claims:
+            if slp_claim.state["signature"] is not None:
+                print(account_address)
+                slp_total_balance = slp_utils.get_claimed_slp(account_address)
+                print(slp_total_balance)
+                print(slp_claim.slp_claimed_balance)
+                print(slp_claim.slp_unclaimed_balance)
+                if slp_total_balance >= slp_claim.slp_claimed_balance + slp_claim.slp_unclaimed_balance:
+                    completed_claims.append(slp_claim)
+
+        for completed_claim in completed_claims:
+            slp_claims.remove(completed_claim)
+
+        if len(slp_claims) > 0:
+            log("The following claims didn't complete successfully:")
             for slp_claim in slp_claims:
-                log(f"   Claiming {slp_claim.slp_unclaimed_balance} SLP for '{slp_claim.name}'...", end="")
-                try:
-                    slp_utils.execute_slp_claim(slp_claim, nonces)
-                except Exception as e:
-                    time.sleep(0.250)
-                    log("FAILED to claim for {}", slp_claim.name)
-                    continue
-                log("DONE")
-            log("Waiting 30 seconds", end="")
-            wait(30)
-
-            completed_claims = []
-            for slp_claim in slp_claims:
-                if slp_claim.state["signature"] is not None:
-                    slp_total_balance = slp_utils.get_claimed_slp(account_address)
-                    print(slp_total_balance)
-                    print(slp_claim.slp_claimed_balance)
-                    print(slp_claim.slp_unclaimed_balance)
-                    if slp_total_balance >= slp_claim.slp_claimed_balance + slp_claim.slp_unclaimed_balance:
-                        completed_claims.append(slp_claim)
-
-            for completed_claim in completed_claims:
-                slp_claims.remove(completed_claim)
-
-            if len(slp_claims) > 0:
-                log("The following claims didn't complete successfully:")
-                for slp_claim in slp_claims:
-                    log(f"  - Account '{slp_claim.name}' has {slp_claim.slp_unclaimed_balance} unclaimed SLP.")
-                #log("Would you like to retry claim process? ", end="")
-            else:
-                log("All claims completed successfully!")
-        except Exception as e:
-            log('(Scholar: ' + slp_claim.name + '): ' + str(e), error=True)
-            continue
+                log(f"  - Account '{slp_claim.name}' has {slp_claim.slp_unclaimed_balance} unclaimed SLP.")
+        else:
+            log("All claims completed successfully!")
+    except Exception as e:
+        log(str(type(e)))
+        log('(Scholar: ' + slp_claim.name + '): ' + str(e), error=True)
 
 log()
 log("Please review the payouts for each scholar:")
@@ -187,48 +204,54 @@ log("Please review the payouts for each scholar:")
 # Generate transactions.
 payouts = []
 
+curr_index = 0
 for _, scholar_info in accounts.items():
-    try:
-        scholarName = scholar_info[0]
-        account_address = parse_ronin_address(scholar_info[1])
+    curr_index += 1
+    scholar_name = scholar_info[0]
+    account_address = parse_ronin_address(scholar_info[1])
 
-        scholar_payout_address = get_scholar_payout_address(account_address)
+    scholar_payout_address = get_scholar_payout_address(account_address)
 
-        if scholar_payout_address is None:
-            log('Scholar {} with address {} has no payout address entered, skipping...'
-                .format(scholarName, account_address))
-            continue
-        else:
-            scholar_payout_address = parse_ronin_address(get_scholar_payout_address(account_address))
-
-        slp_balance = slp_utils.get_claimed_slp(account_address)
-
-        if slp_balance == 0:
-            log(f"Skipping account '{scholarName}' ({format_ronin_address(account_address)}) because SLP balance is zero.")
-            continue
-
-        scholar_payout_percentage = SCHOLARSHIP_SHARE
-        assert(0 <= scholar_payout_percentage <= 1)
-
-        scholar_payout_amount = math.ceil(slp_balance * scholar_payout_percentage)
-        academy_payout_amount = slp_balance - scholar_payout_amount
-
-        assert (scholar_payout_amount >= 0)
-        assert (academy_payout_amount >= 0)
-        assert (slp_balance == scholar_payout_amount + academy_payout_amount)
-
-        payouts.append(Payout(
-            name=scholarName,
-            private_key=get_private_key(scholar_info[2]),
-            slp_balance=slp_balance,
-            nonce=nonces[account_address],
-            scholar_transaction=Transaction(from_address=account_address, to_address=scholar_payout_address,
-                                            amount=scholar_payout_amount),
-            academy_transaction=Transaction(from_address=account_address, to_address=academy_payout_address,
-                                            amount=academy_payout_amount)))
-    except Exception as e:
-        log('(Scholar: ' + scholarName + '): ' + str(e), error=True)
+    if scholar_payout_address is None:
+        log('({}/{}) Scholar {} with address {} has no payout address entered, skipping...'
+            .format(curr_index, num_accounts, scholar_name, account_address))
         continue
+    else:
+        try:
+            scholar_payout_address = parse_ronin_address(get_scholar_payout_address(account_address))
+        except ValueError as e:
+            log('({}/{}) Scholar {} payout address is invalid. Exception: {}'.format(curr_index, num_accounts,
+                                                                                     scholar_name, e),
+                error=True)
+            continue
+
+    slp_balance = slp_utils.get_claimed_slp(account_address)
+
+    if slp_balance == 0:
+        log("({}/{}) Skipping account {} ({}) because SLP balance is zero.".format(curr_index, num_accounts, scholar_name, format_ronin_address(account_address)))
+        continue
+
+    scholar_payout_percentage = float(scholar_info[4])
+    if not (0 < scholar_payout_percentage <= 1):
+        log(message="Scholar payout percentage not correctly entered for {}".format(scholar_name), error=True)
+    assert(0 < scholar_payout_percentage <= 1)
+
+    scholar_payout_amount = math.ceil(slp_balance * scholar_payout_percentage)
+    academy_payout_amount = slp_balance - scholar_payout_amount
+
+    assert (scholar_payout_amount >= 0)
+    assert (academy_payout_amount >= 0)
+    assert (slp_balance == scholar_payout_amount + academy_payout_amount)
+
+    payouts.append(Payout(
+        name=scholar_name,
+        private_key=get_private_key(scholar_info[2]),
+        slp_balance=slp_balance,
+        nonce=nonces[account_address],
+        scholar_transaction=Transaction(from_address=account_address, to_address=scholar_payout_address,
+                                        amount=scholar_payout_amount),
+        academy_transaction=Transaction(from_address=account_address, to_address=academy_payout_address,
+                                        amount=academy_payout_amount)))
 
 log()
 
@@ -236,8 +259,11 @@ if len(payouts) == 0:
     exit()
 
 # Preview transactions.
+num_payouts = len(payouts)
+curr_payout = 0
 for payout in payouts:
-    log(f"Payout for '{payout.name}'")
+    curr_payout += 1
+    log("({}/{}) Payout for {}".format(curr_payout, num_payouts, payout.name))
     log(f"├─ SLP balance: {payout.slp_balance} SLP")
     log(f"├─ Nonce: {payout.nonce}")
     log(
@@ -246,7 +272,7 @@ for payout in payouts:
         f"├─ Academy payout: send {payout.academy_transaction.amount:5} SLP from {format_ronin_address(payout.academy_transaction.from_address)} to {format_ronin_address(payout.academy_transaction.to_address)}")
     log()
 
-log("Would you like to execute transactions (y/n) ?", end=" ")
+log("Would you like to execute transactions? [y]/N", end=" ")
 if input() != "y":
     log("No transaction was executed. Program will now stop.")
     exit()
@@ -259,6 +285,7 @@ for payout in payouts:
     log(
         f"├─ Scholar payout: sending {payout.scholar_transaction.amount} SLP from {format_ronin_address(payout.scholar_transaction.from_address)} to {format_ronin_address(payout.scholar_transaction.to_address)}...",
         end="")
+    log(f"├─ Send? [y]/N", end="")
     txn_hash = slp_utils.transfer_slp(payout.scholar_transaction, payout.private_key, payout.nonce)
     time.sleep(0.250)
     log("DONE")
@@ -267,6 +294,7 @@ for payout in payouts:
     log(
         f"├─ Academy payout: sending {payout.academy_transaction.amount} SLP from {format_ronin_address(payout.academy_transaction.from_address)} to {format_ronin_address(payout.academy_transaction.to_address)}...",
         end="")
+    log(f"├─ Send? [y]/N", end="")
     txn_hash = slp_utils.transfer_slp(payout.academy_transaction, payout.private_key, payout.nonce + 1)
     time.sleep(0.250)
     log("DONE")

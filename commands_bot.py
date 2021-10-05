@@ -25,6 +25,10 @@ def get_commands_founders_msg():
     msg += '!earnings product2'
     msg += '!earnings product2_prep'
     msg += '!earnings product3'
+    msg += '!earnings mike'
+    msg += '!share product2'
+    msg += '!share product3'
+    msg += '!share product3 max'
 
     return msg
 
@@ -81,12 +85,13 @@ def user_has_permission(user, command):
     if user is None:
         return False
 
-    #current_permissions = get_command_permissions(command)
+    current_permissions = get_command_permissions(command)
 
-    #user_roles = [str(role.id) for role in user.roles]
+    user_roles = [str(role.id) for role in user.roles]
 
-    if user.id == 490989299911884800:
-        return True
+    for user_role in user_roles:
+        if user_role in current_permissions:
+            return True
 
     print('User {} does not have permission for command {}'.format(user.name, command))
 
@@ -101,7 +106,7 @@ async def run_command_bot(user, channel, guild, msg_pieces):
         return
     print('here')
 
-    if msg_pieces[1] == 'add_role':
+    if msg_pieces[1] == 'add':
         print('Adding role....')
         msg_pieces = msg_pieces[2:]
         command_piece_end = resolve_command_pieces(msg_pieces)
@@ -109,14 +114,14 @@ async def run_command_bot(user, channel, guild, msg_pieces):
         role = msg_pieces[command_piece_end + 1]
         await add_role_to_command(command, role, channel, guild)
 
-    elif msg_pieces[1] == 'remove_role':
+    elif msg_pieces[1] == 'rm':
         msg_pieces = msg_pieces[2:]
         command_piece_end = resolve_command_pieces(msg_pieces)
         command = (' '.join(msg_pieces[:command_piece_end + 1])).replace('"', '')
         role = msg_pieces[command_piece_end + 1]
         await remove_role_from_command(command, role, channel, guild)
 
-    elif msg_pieces[1] == 'view_roles':
+    elif msg_pieces[1] == 'view':
         msg_pieces = msg_pieces[2:]
         command_piece_end = resolve_command_pieces(msg_pieces)
         command = (' '.join(msg_pieces[:command_piece_end + 1])).replace('"', '')

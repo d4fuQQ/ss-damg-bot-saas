@@ -6,7 +6,8 @@ from datetime import datetime
 
 from constants import SCHOLARS_CHAT_CHANNEL, MASTERS_CHAT_CHANNEL, DISCORD_BOT_TOKEN
 from pve_slp_api import get_daily_pve_summary
-from slp_bot import get_individual_rank_msg, get_top_rank_msg, get_all_rank_msg
+from share_price_bot import get_current_share_price, get_current_share_price_2, get_axies_by_traits
+from slp_bot import get_individual_rank_msg, get_top_rank_msg, get_all_rank_msg, send_daily_slp_msg
 from earnings_bot import get_product_earnings_msg
 from payout_bot import run_update_payout, payout_pull, payout_request_scholars
 
@@ -40,9 +41,22 @@ async def on_message(message):
             await get_individual_rank_msg(message.author, message.channel)
             return
 
+    elif msg_pieces[0] == '!daily_slp':
+        await send_daily_slp_msg(message.author, message.channel)
+        return
+
     elif msg_pieces[0] == '!pve':
         await get_daily_pve_summary(message.author, message.channel)
         return
+
+    elif msg_pieces[0].startswith('!product'):
+        if msg_pieces[0] == '!product2':
+            await get_current_share_price_2(message.author, message.channel)
+            return
+
+        elif msg_pieces[0] == '!product3':
+            await get_current_share_price(message.author, message.channel, len(msg_pieces) > 1 and msg_pieces[1] == 'max')
+            return
 
     elif msg_pieces[0] == '!earnings':
         if len(msg_pieces) == 1:
@@ -70,6 +84,8 @@ async def on_message(message):
     elif msg_pieces[0] == '!commands':
         await run_command_bot(message.author, message.channel, message.guild, msg_pieces)
         return
+
+    return
 
 
 @client.event
@@ -100,6 +116,8 @@ async def on_ready():
             print('Exception: {}'.format(e))
             await client.close()
             return
+
+
 
 
 client.run(DISCORD_BOT_TOKEN)

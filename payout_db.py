@@ -1,28 +1,9 @@
-import psycopg2
-from psycopg2 import Error
-
-
 import pandas as pd
 
 from constants import PAYOUT_TABLE_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE
+from db import connect, execute_query, execute_query_get_results
 
 
-def connect(user, password, host, database):
-    try:
-        conn = psycopg2.connect(user=user,
-                                password=password,
-                                host=host,
-                                port="5432",
-                                database=database)
-
-        cur = conn.cursor()
-        return conn, cur
-
-    except (Exception, Error) as error:
-        print("Error while connecting to PostgreSQL", error)
-
-
-# Create table (don't run again! Only here for safe keeping. Does not overwrite existing tables).
 def create_table():
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
 
@@ -32,20 +13,15 @@ def create_table():
                 payout_address          TEXT            NOT NULL
           ); '''.format(PAYOUT_TABLE_NAME)
 
-    cur.execute(create_table_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(create_table_query, cur, conn)
 
 
 def get_entire_db():
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
 
-    view_db = 'SELECT * FROM ' + PAYOUT_TABLE_NAME
+    view_table_query = 'SELECT * FROM ' + PAYOUT_TABLE_NAME
 
-    cur.execute(view_db)
-    query_results = cur.fetchall()
+    query_results = execute_query_get_results(view_table_query, cur, conn)
 
     df = pd.DataFrame(query_results, columns=['address', 'scholar', 'payout_address'])
     return df
@@ -53,11 +29,8 @@ def get_entire_db():
 
 def get_scholar_payout_address(ronin_address):
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
-
-    view_db = 'SELECT payout_address FROM {} WHERE address = \'{}\''.format(PAYOUT_TABLE_NAME, ronin_address.lower())
-
-    cur.execute(view_db)
-    query_results = cur.fetchall()
+    view_table_query = 'SELECT payout_address FROM {} WHERE address = \'{}\''.format(PAYOUT_TABLE_NAME, ronin_address.lower())
+    query_results = execute_query_get_results(view_table_query, cur, conn)
 
     if len(query_results) == 0:
         return None
@@ -80,17 +53,11 @@ def insert_row(row):
     add_row_query = '''
                 INSERT INTO {} (
                 address, scholar, payout_address)
-
                 VALUES
-
                 ('{}', '{}', '{}')
           '''.format(PAYOUT_TABLE_NAME, address, scholar, payout_address)
 
-    cur.execute(add_row_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(add_row_query, cur, conn)
 
 
 def update_row(row):
@@ -108,19 +75,14 @@ def update_row(row):
                     WHERE address = '{}'
               '''.format(PAYOUT_TABLE_NAME, scholar, payout_address, address)
 
-    cur.execute(add_entry_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(add_entry_query, cur, conn)
 
 
 def update_db(row):
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
 
     get_user_info_query = "SELECT * FROM {} WHERE address = '{}'".format(PAYOUT_TABLE_NAME, row[0]['ronin_address'])
-    cur.execute(get_user_info_query)
-    query_results = cur.fetchall()
+    query_results = execute_query_get_results(get_user_info_query, cur, conn)
 
     if len(query_results) == 0:
         insert_row(row)
@@ -128,7 +90,3 @@ def update_db(row):
         update_row(row)
     else:
         raise Exception('Multiple addresses found with address {}: \n{}', row[0]['ronin_address'], query_results)
-
-    conn.commit()
-    cur.close()
-    conn.close()

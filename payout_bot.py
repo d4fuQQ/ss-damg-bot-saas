@@ -8,7 +8,7 @@ from payout_db import update_db, get_entire_db
 async def run_update_payout(user, channel, payout_address):
     if not is_valid_ronin_address(payout_address):
         await send_message(
-            'Hi, <@{}>. Input valid ronin or slp payout address as !payout your_address_here'.format(user.name),
+            'Hi, <@{}>. Input valid ronin address as !payout your_address_here'.format(user.name),
             channel)
         return
 
@@ -73,8 +73,8 @@ async def payout_request_scholars(user, channel):
             address_to_discord_id.pop(scholar)
 
     # Remove Dev Address
-    #excluded_address = '0x9a6d68b161d547924bd65691302f92ad2b463d8d'
-    #address_to_discord_id.pop(excluded_address)
+    excluded_address = '0x9a6d68b161d547924bd65691302f92ad2b463d8d'
+    address_to_discord_id.pop(excluded_address)
 
     for discord_id in address_to_discord_id.values():
         msg += '<@{}> : Payout Needed.\n'.format(discord_id)

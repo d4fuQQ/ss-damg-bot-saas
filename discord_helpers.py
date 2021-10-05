@@ -28,7 +28,7 @@ def get_messages_under_max_size(message):
     return first_half_pieces + second_half_pieces
 
 
-async def send_message(message_to_send: str, to, received_message=None, title=None):
+async def send_message(message_to_send: str, to, received_message=None, title=None, file=None):
     print('\n{}\n'.format(message_to_send))
     messages = get_messages_under_max_size(message_to_send)
 
@@ -43,6 +43,10 @@ async def send_message(message_to_send: str, to, received_message=None, title=No
             if received_message is not None and index == 0:
                 await received_message.channel.send('Hi, <@{}>. Please enable discord Direct Messages in settings.'
                                                     .format(received_message.author.id))
+
+
+async def send_file(file, to):
+    await to.send(file=discord.File(file))
 
 
 def resolve_command_pieces(pieces):

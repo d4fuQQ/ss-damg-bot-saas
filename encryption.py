@@ -27,6 +27,7 @@ def return_scholar_dict():
         ronin_wallet_address = line[2].strip()
         ronin_private_key = line[3].strip()
         product = line[4].strip()
+        percent = line[5].strip()
 
         if len(discord_id) == 0 or len(discord_name) == 0 or len(ronin_wallet_address) == 0 \
                 or len(ronin_private_key) == 0:
@@ -37,7 +38,7 @@ def return_scholar_dict():
         except:
             continue
 
-        scholars_dict[discord_id] = [discord_name, ronin_wallet_address, ronin_private_key, product]
+        scholars_dict[discord_id] = [discord_name, ronin_wallet_address, ronin_private_key, product, percent]
 
     return scholars_dict
 

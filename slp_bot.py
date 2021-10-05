@@ -1,10 +1,13 @@
+import argparse
+
 import datetime
+import discord
 import time
 
 from commands_bot import user_has_permission
 from constants import TIMESTAMP_FORMAT, MIN_DAYS_FOR_INCLUSION, PLAYERS_IN_TOP_RANK_COMMAND, \
-    SCHOLARS_TO_EXCLUDE_FROM_TOP_RANK, DEV_RONIN_ADDRESSES
-from discord_helpers import send_message
+    SCHOLARS_TO_EXCLUDE_FROM_TOP_RANK, DEV_RONIN_ADDRESSES, DAYS_TO_TRACK_SLP
+from discord_helpers import send_message, send_file
 from encryption import return_scholar_dict, get_address_to_discord_id_dict
 from slp_api import get_slp_stats
 from slp_db import update_db, get_entire_db, update_daily_slp
@@ -195,3 +198,38 @@ async def get_all_rank_msg(user, channel):
         msg += '<@{}> : {:.1f} SLP AVG\n'.format(address_to_discord_id[row['address']], row['average_slp'])
 
     await send_message(msg, channel)
+
+
+async def send_daily_slp_msg(user, channel):
+    if not user_has_permission(user, "!daily_slp"):
+        return
+
+    df = get_entire_db()
+    address_to_discord_id = get_address_to_discord_id_dict()
+    csv_file = 'daily_slp.csv'
+
+    with open(csv_file, 'w') as f:
+        header = 'name,address,1_days_ago,' + ','.join(['{}_days_ago'.format(x) for x in
+                                                        list(range(2, DAYS_TO_TRACK_SLP+1))]) + '\n'
+        f.write(header)
+
+        for index, row in df.iterrows():
+            name = row['name']
+            address = row['address']
+            if address not in address_to_discord_id:
+                continue
+
+            daily_slp = [str(x) for x in row['daily_slp']]
+            daily_slp_str = ', '.join(daily_slp)
+            daily_slp_str += ''.join([',' for x in range(len(daily_slp), DAYS_TO_TRACK_SLP-1)])
+            f.write('{},{},{}\n'.format(name, address, daily_slp_str))
+    await send_file(csv_file, channel)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--daily_update', required=False, default=None, dest='daily_update', action='store_true')
+    parsed_args = parser.parse_args()
+
+    run_update(parsed_args.daily_update)
+

@@ -18,7 +18,7 @@ def get_product_scholars(product):
             if info[3] != 'mike':
                 product_addresses.append(info[1])
 
-    if product == 'product1' or 'product2' or 'product2_prep' or 'product3' or 'product4' or 'mike':
+    if product == 'product1' or 'product2' or 'product2_prep' or 'product3' or 'product4' or 'product5' or 'mike':
         for info in scholar_dict.values():
             if info[3] == product:
                 product_addresses.append(info[1])

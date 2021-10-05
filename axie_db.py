@@ -1,31 +1,13 @@
-import psycopg2
-from psycopg2 import Error
-
-
 import pandas as pd
 
 from constants import AXIE_TABLE_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE
 
 
-def connect(user, password, host, database):
-    try:
-        conn = psycopg2.connect(user=user,
-                                password=password,
-                                host=host,
-                                port="5432",
-                                database=database)
-
-        cur = conn.cursor()
-        return conn, cur
-
-    except (Exception, Error) as error:
-        print("Error while connecting to PostgreSQL", error)
+from db import connect, execute_query_get_results, execute_query
 
 
-# Create table (don't run again! Only here for safe keeping. Does not overwrite existing tables).
 def create_table():
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
-
     create_table_query = '''CREATE TABLE IF NOT EXISTS {} (
                 axie_id                 TEXT         PRIMARY KEY,
                 axie_class              TEXT            NOT NULL,
@@ -40,21 +22,13 @@ def create_table():
                 address                 TEXT            NOT NULL
           ); '''.format(AXIE_TABLE_NAME)
 
-    cur.execute(create_table_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(create_table_query, cur, conn)
 
 
 def get_entire_db():
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
-
-    view_db = 'SELECT * FROM ' + AXIE_TABLE_NAME
-
-    cur.execute(view_db)
-    query_results = cur.fetchall()
-
+    view_table_query = 'SELECT * FROM ' + AXIE_TABLE_NAME
+    query_results = execute_query_get_results(view_table_query, cur, conn)
     df = pd.DataFrame(query_results, columns=['axie_id', 'axie_class', 'breed_count', 'eyes', 'ears', 'back', 'mouth',
                                               'horn', 'tail', 'scholar', 'address'])
     return df
@@ -62,7 +36,6 @@ def get_entire_db():
 
 def insert_row(row):
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
-
     axie_id = row['id']
     axie_class = row['class']
     breed_count = row['breedCount']
@@ -85,11 +58,7 @@ def insert_row(row):
           '''.format(AXIE_TABLE_NAME, axie_id, axie_class, breed_count, eyes, ears, back, mouth, horn, tail, scholar,
                      address)
 
-    cur.execute(add_row_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(add_row_query, cur, conn)
 
 
 def update_row(row):
@@ -124,19 +93,14 @@ def update_row(row):
               '''.format(AXIE_TABLE_NAME, axie_class, breed_count, eyes, ears, back, mouth, horn, tail,
                          scholar, address, axie_id)
 
-    cur.execute(add_entry_query)
-    conn.commit()
-
-    cur.close()
-    conn.close()
+    execute_query(add_entry_query, cur, conn)
 
 
 def update_db(row):
     conn, cur = connect(DB_USER, DB_PASSWORD, DB_HOST, DB_DATABASE)
 
     get_user_info_query = "SELECT * FROM {} WHERE axie_id = '{}'".format(AXIE_TABLE_NAME, row['id'])
-    cur.execute(get_user_info_query)
-    query_results = cur.fetchall()
+    query_results = execute_query_get_results(get_user_info_query, cur, conn)
 
     if len(query_results) == 0:
         insert_row(row)
@@ -144,7 +108,3 @@ def update_db(row):
         update_row(row)
     else:
         raise Exception('Multiple axies found with id {}: \n{}', row['axie_id'], query_results)
-
-    conn.commit()
-    cur.close()
-    conn.close()
