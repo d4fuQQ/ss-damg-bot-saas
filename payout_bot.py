@@ -72,10 +72,6 @@ async def payout_request_scholars(user, channel):
         if scholar in address_to_discord_id:
             address_to_discord_id.pop(scholar)
 
-    # Remove Dev Address
-    excluded_address = '0x9a6d68b161d547924bd65691302f92ad2b463d8d'
-    address_to_discord_id.pop(excluded_address)
-
     for discord_id in address_to_discord_id.values():
         msg += '<@{}> : Payout Needed.\n'.format(discord_id)
 
